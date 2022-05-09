@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <title>Discrete Hopf Fibrations</title>
+
+  <script src="js/three.min.js"></script>
+  <script src="js/OrbitControls.js"></script>
+
+  <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML">
+  </script>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+    tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+  });
+  </script>
+
+  <link rel="stylesheet" href="css/pico.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+  <canvas id="c"></canvas>
+
+  <header class="container">
+    <h1>
+      Discrete Hopf Fibration
+    </h1>
+    <div class="center grid">
+      <label for="rotate_switch">
+        <input type="checkbox" id="rotate_switch" role="switch" onchange="toggleRotation()">
+        Enable Rotation
+      </label>
+      <label for="zoom_switch">
+        <input type="checkbox" id="zoom_switch" role="switch" onchange="toggleZoom()">
+        Enable Zoom
+      </label>
+      <label for="theme_switch">
+        <input type="checkbox" id="theme_switch" role="switch" onchange="toggleDarkTheme()">
+        Dark Theme
+      </label>
+      <label for="collapse_switch">
+        <input type="checkbox" id="collapse_switch" role="switch" onchange="toggleCollapse()">
+        Collapse tabs
+      </label>
+    </div>
+  </header>
+
+  <div class="container" id="content"></div>
+
+  <script>
+    // control variables
+    var enable_rotation = true;
+    var enable_zoom = false;
+    var rotation_speed = 0.0005;
+    var rotation_offset = 0;
+    var stop_time = 0
+
+    // set color theme
+    var current_scheme;
+    if (localStorage.getItem("current_scheme") !== null) {
+      current_scheme = localStorage.getItem("current_scheme");
+    } else {
+      if (document.querySelector('html').hasAttribute('data-theme')) {
+        current_scheme = document.querySelector('html').attributes["data-theme"].nodeValue;
+      } else {
+        current_scheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+    }
+    document.querySelector('html').setAttribute('data-theme', current_scheme);
+
+    // default switches
+    document.getElementById("zoom_switch").checked = false;
+    document.getElementById("rotate_switch").checked = true;
+    document.getElementById("theme_switch").checked = (current_scheme == "dark") ? true : false;
+    document.getElementById("collapse_switch").checked = false;
+
+    // css variables
+    var background_color = getComputedStyle(document.body).getPropertyValue('--background-color');
+    var card_background_color = getComputedStyle(document.body).getPropertyValue('--card-background-color');
+
+    // switch functions
+    function toggleDarkTheme() {
+      let scheme;
+      scheme = (current_scheme == "light") ? scheme = "dark" : scheme = 'light';
+      document.querySelector('html').setAttribute('data-theme', scheme);
+      background_color = getComputedStyle(document.body).getPropertyValue('--background-color');
+      card_background_color = getComputedStyle(document.body).getPropertyValue('--card-background-color');
+      current_scheme = scheme;
+      localStorage.setItem("current_scheme", current_scheme);
+      render();
+    }
+
+    function toggleZoom() {
+      enable_zoom = !enable_zoom;
+      scenes.forEach(function(scene) {
+        scene.userData.controls.enableZoom = enable_zoom;
+      })
+    }
+
+    function toggleCollapse() {
+      let is_open = document.getElementById("collapse_switch").checked
+      let detailsElements = document.getElementsByTagName("details");
+      for (let detailsElement of detailsElements) {
+        if (is_open) {
+          detailsElement.removeAttribute("open");
+        } else {
+          detailsElement.setAttribute("open", "true");
+        }
+      }
+    }
+
+    function toggleRotation() {
+      enable_rotation = !enable_rotation;
+      if (enable_rotation) {
+        rotation_offset = (Date.now() - stop_time) * rotation_speed + rotation_offset;
+        stop_time = 0
+      } else {
+        stop_time = Date.now()
+      }
+    }
+
+    // for some reason chrome does not hide scene element when details
+    // element is closed. Therefore this hack
+    function fixDetails() {
+      let detailsElements = document.getElementsByTagName("details");
+      for (let detailsElement of detailsElements) {
+        detailsElement.addEventListener("toggle", function() {
+          for (let item of detailsElement.getElementsByClassName("list-item")) {
+            item.style.display = (detailsElement.hasAttribute("open")) ? "inline-block" : "none";
+          }
+        })
+      }
+    }
+
+    // function to load json files 
+    function loadJSON(filePath) {
+      // src: https://stackoverflow.com/a/4117299
+      var json = loadTextFileAjaxSync(filePath, "application/json");
+      return JSON.parse(json);
+    }
+
+    function loadTextFileAjaxSync(filePath, mimeType) {
+      var xmlhttp = new XMLHttpRequest();
+      xmlhttp.open("GET", filePath, false);
+      if (mimeType != null) {
+        if (xmlhttp.overrideMimeType) {
+          xmlhttp.overrideMimeType(mimeType);
+        }
+      }
+      xmlhttp.send();
+      if (xmlhttp.status == 200 && xmlhttp.readyState == 4) {
+        return xmlhttp.responseText;
+      } else {
+        return null;
+      }
+    }
+  </script>
+
+  <script>
+    // threejs variables
+    let canvas;
+    let renderer;
+    const scenes = [];
+    
+    // main
+    init();
+    animate();
+    fixDetails();
+
+    // initialization function
+    function init() {
+      canvas = document.getElementById("c");
+      const content = document.getElementById('content');
+
+      let files = [
+        "IxCn_5.json",
+        "IxCn_3.json",
+        "IxCn_2.json",
+
+        "OxCn_4.json",
+        "OxCn_3.json",
+        "OxCn_2.json",
+
+        "hOxC2n_4.json",
+        "hOxC2n_3.json",
+        "hOxC2n_2.json",
+
+        "TxCn_3.json",
+        "TxCn_2.json",
+
+        "tTxC3n_3.json",
+        "tTxC3n_3p.json",
+        "tTxC3n_2.json",
+
+      ];
+
+      for (const center_file of files) {
+        let center_data = loadJSON("data/cells/" + center_file);
+
+        const detailsElement = document.createElement('details');
+        detailsElement.open = true;
+        const summaryElement = document.createElement('summary');
+        summaryElement.innerHTML = `${center_data.information.gr_latex}, ${center_data.information.center_type} rotation center`;
+        detailsElement.appendChild(summaryElement);
+
+        // build the cells
+        for (const cell_data of center_data.cells) {
+          let vertices = cell_data.points;
+          let information = cell_data.information
+          let faces_indices = cell_data.faces
+
+          let faces_vertices = [];
+          let edges_vertices = [];
+          for (let i = 0; i < faces_indices.length; i++) {
+            for (let t = 0; t < faces_indices[i].length - 2; t++) {
+              faces_vertices.push(vertices[faces_indices[i][0]]);
+              faces_vertices.push(vertices[faces_indices[i][t + 1]]);
+              faces_vertices.push(vertices[faces_indices[i][t + 2]]);
+
+              edges_vertices.push(vertices[faces_indices[i][t]]);
+              edges_vertices.push(vertices[faces_indices[i][t + 1]]);
+            }
+            edges_vertices.push(vertices[faces_indices[i][faces_indices[i].length - 2]]);
+            edges_vertices.push(vertices[faces_indices[i][faces_indices[i].length - 1]]);
+            edges_vertices.push(vertices[faces_indices[i][faces_indices[i].length - 1]]);
+            edges_vertices.push(vertices[faces_indices[i][0]]);
+          }
+
+          // edges
+          let edges_vertices_array = new Float32Array(edges_vertices.flat());
+          let edges_geometry = new THREE.BufferGeometry()
+          edges_geometry.setAttribute('position', new THREE.Float32BufferAttribute(edges_vertices_array, 3));
+          edges_geometry.computeVertexNormals()
+          let edges_material = new THREE.LineBasicMaterial({
+            color: "black",
+            linewidth: 1,
+          });
+          let edges_mesh = new THREE.LineSegments(edges_geometry, edges_material);
+          edges_mesh.userData.type = "edges";
+
+          // faces
+          let faces_vertices_array = new Float32Array(faces_vertices.flat());
+          let faces_geometry = new THREE.BufferGeometry();
+          faces_geometry.setAttribute('position', new THREE.Float32BufferAttribute(faces_vertices_array, 3));
+          faces_geometry.computeVertexNormals();
+          /*
+          let face_material = new THREE.MeshBasicMaterial({
+            color: "orange",
+            depthFunc: THREE.LessDepth,
+            opacity: 1,
+            polygonOffset: true,
+            polygonOffsetFactor: 1,
+            polygonOffsetUnits: 0.5,
+            side: THREE.DoubleSide,
+            transparent: true
+          })
+          */
+          let face_material_phong = new THREE.MeshPhongMaterial({
+            side: THREE.DoubleSide,
+            color: "orange",
+            transparent: true,
+            opacity: 1,
+            flatShading: false,
+            shininess: 20,
+            polygonOffset: true,
+            polygonOffsetFactor: 1,
+            polygonOffsetUnits: 0.5,
+          })
+          let faces_mesh = new THREE.Mesh(faces_geometry, face_material_phong);
+          faces_mesh.userData.type = "faces";
+
+          // scaling for view camera_position
+          let scale = 1;
+          if (center_file == "IxCn_5.json") {
+            scale = 0.7
+          }
+          if (center_file == "IxCn_3.json") {
+            scale = 0.7
+          }
+          if (center_file == "IxCn_2.json") {
+            scale = 0.7
+          }
+          if (center_file == "OxCn_4.json") {
+            scale = 1
+          }
+          if (center_file == "OxCn_3.json") {
+            scale = 1
+          }
+          if (center_file == "OxCn_2.json") {
+            scale = 1
+          }
+          if (center_file == "hOxC2n_4.json") {
+            scale = 1.6
+          }
+          if (center_file == "hOxC2n_3.json") {
+            scale = 1.2
+          }
+          if (center_file == "hOxC2n_2.json") {
+            scale = 1.4
+          }
+          if (center_file == "tTxC3n_3.json") {
+            scale = 2.7
+          }
+          if (center_file == "tTxC3n_3p.json") {
+            scale = 1.6
+          }
+          if (center_file == "tTxC3n_2.json") {
+            scale = 1.6
+          }
+          if (center_file == "TxCn_3.json") {
+            scale = 1.5
+          }
+          if (center_file == "TxCn_3p.json") {
+            scale = 1.5
+          }
+          if (center_file == "TxCn_2.json") {
+            scale = 1.6
+          }
+
+          // cell axis
+          const axis_material = new THREE.LineBasicMaterial({
+            color: 0x00ffff
+          });
+          const axis_points = [];
+          axis_points.push(new THREE.Vector3(0, 0, 0));
+          axis_points.push(new THREE.Vector3(0, 0, 2 * scale / 3));
+          const axis_geometry = new THREE.BufferGeometry().setFromPoints(axis_points);
+          const axis_mesh = new THREE.Line(axis_geometry, axis_material);
+
+          // cell
+          const cell_group = new THREE.Group();
+          cell_group.add(faces_mesh);
+          cell_group.add(edges_mesh);
+          cell_group.add(axis_mesh);
+          //cell_group.add(new THREE.AxesHelper(1))
+          cell_group.userData.type = "cell";
+
+          // scene
+          const scene = new THREE.Scene();
+
+          // add scene to dom
+          const element = document.createElement('div');
+          element.className = 'list-item';
+          const articleElement = document.createElement('article');
+          const sceneElement = document.createElement('div');
+          sceneElement.className = 'scene';
+          articleElement.appendChild(sceneElement);
+          const footerElement = document.createElement('footer');
+          const descriptionElement = document.createElement('a');
+          descriptionElement.innerText = `n =  ${information.ns}; #cells = ${information.ncells_all}`;
+          descriptionElement.href = "gallery.html?f=" + information.fname;
+          footerElement.appendChild(descriptionElement);
+          articleElement.appendChild(footerElement);
+          element.appendChild(articleElement);
+          scene.userData.element = sceneElement;
+          detailsElement.appendChild(element)
+
+          // camera
+          const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 10);
+          camera.up.set(0, 0, 1);
+          camera.position.set(scale, scale, scale);
+          scene.userData.camera = camera;
+
+          // controls
+          const controls = new THREE.OrbitControls(scene.userData.camera, scene.userData.element);
+          controls.minDistance = 0;
+          controls.maxDistance = 5;
+          controls.enablePan = false;
+          controls.enableZoom = (enable_zoom) ? true : false;
+          scene.userData.controls = controls;
+
+          scene.add(cell_group);
+
+          // light
+          scene.add(new THREE.HemisphereLight(0xaaaaaa, 0x444444));
+          const light = new THREE.DirectionalLight(0xffffff, 0.5);
+          light.position.set(1, 1, 1);
+          scene.add(light);
+
+          scenes.push(scene);
+        }
+        content.appendChild(detailsElement);
+      }
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: true
+      });
+      renderer.setClearColor(background_color, 1);
+      renderer.setPixelRatio(window.devicePixelRatio);
+    }
+
+    // rendering functions
+    function updateSize() {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (canvas.width !== width || canvas.height !== height) {
+        renderer.setSize(width, height, false);
+      }
+    }
+
+    function animate() {
+      render();
+      requestAnimationFrame(animate);
+    }
+
+    function render() {
+      updateSize();
+      canvas.style.transform = `translateY(${window.scrollY}px)`;
+
+      renderer.setClearColor(background_color);
+      renderer.setScissorTest(false);
+      renderer.clear();
+
+      renderer.setClearColor(card_background_color, 1);
+      renderer.setScissorTest(true);
+
+      scenes.forEach(function(scene) {
+        // rotate
+        if (enable_rotation) {
+          scene.children[0].rotation.z = Date.now() * rotation_speed - rotation_offset;
+        }
+
+        // get its position relative to the page's viewport
+        const element = scene.userData.element;
+        const rect = element.getBoundingClientRect();
+
+        // check if it's offscreen. If so skip it
+        if (rect.bottom < 0 || rect.top > renderer.domElement.clientHeight ||
+          rect.right < 0 || rect.left > renderer.domElement.clientWidth) {
+          return; // it's off screen
+        }
+
+        // set the viewport
+        const width = rect.right - rect.left;
+        const height = rect.bottom - rect.top;
+        const left = rect.left;
+        const bottom = renderer.domElement.clientHeight - rect.bottom;
+        renderer.setViewport(left, bottom, width, height);
+        renderer.setScissor(left, bottom, width, height);
+
+        const camera = scene.userData.camera;
+        renderer.render(scene, camera);
+      });
+    }
+  </script>
+</body>
+
+</html>

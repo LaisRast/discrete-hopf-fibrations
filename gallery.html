@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <title>Discrete Hopf Fibrations</title>
+
+  <script src="js/three.min.js"></script>
+  <script src="js/OrbitControls.js"></script>
+  <script src="js/rainbowvis.js"></script>
+
+  <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML">
+  </script>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+    tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+  });
+  </script>
+
+  <link rel="stylesheet" href="css/pico.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+  <a href="javascript:void(0)" class="openbtn" onclick="openNav()">☰</a>
+
+  <div id="sidebar" class="sidebar">
+    <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">ⓧ</a>
+    <a href="javascript:void(0)" class="infobtn" data-target="info_dialog" onClick="toggleModal(event)">ⓘ</a>
+    <a href="index.html" class="homebtn">⌂</a>
+
+    <div class="section" id="log_panel">
+    </div>
+    <div class="section">
+      <strong>Select picture</strong>
+      <select id="file_selector" onchange="openFile(this)">
+        <option value='perspective' selected disabled>Select picture</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <strong>Details</strong>
+      <table>
+        <tr>
+          <td>group</td>
+          <td id="data_gr_latex"></td>
+        </tr>
+        <tr>
+          <td>$n$</td>
+          <td id="data_ns"></td>
+        </tr>
+        <tr>
+          <td>#tubes</td>
+          <td id="data_ntubes"></td>
+        </tr>
+        <tr>
+          <td>#cells per tube</td>
+          <td id="data_ncells_on_tube"></td>
+        </tr>
+        <tr>
+          <td>#cells in total</td>
+          <td id="data_ncells_all"></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <strong>Tubes</strong>
+      <div id="svg_ph"></div>
+      <div class="center">
+        <a href="javascript:void(0)" role="button" onclick="clearTubes()">Clear All</a>
+      </div>
+    </div>
+
+    <div class="section">
+      <strong>#Cells : <output id="ncells_to_show_output"></output></strong>
+      <input type="range" name="ncells_to_show" min="0" max="1" step="1" oninput="changeNCells()">
+    </div>
+
+    <div class="section">
+      <strong>Opacity : <output id="opacity_output"></output></strong>
+      <input type="range" name="opacity" min="0" max="1" step="0.01" oninput="changeOpacity()">
+    </div>
+
+    <div class="section">
+      <strong>Camera</strong>
+      <fieldset>
+        <label>
+          <input type="radio" name="camera_type" value="0" onchange="changeCamera()">
+          Perspective
+        </label>
+        <label>
+          <input type="radio" name="camera_type" value="1" onchange="changeCamera()" checked>
+          Orthographic
+        </label>
+      </fieldset>
+    </div>
+
+    <div class="section">
+      <strong>Others</strong>
+      <label>
+        <input type="checkbox" id="toggle_window" role="switch" onchange="toggleWindow()">
+        Show Outer
+      </label>
+      <label>
+        <input type="checkbox" id="toggle_box" role="switch" onchange="toggleBox()">
+        Bounding Box
+      </label>
+      <label for="switch">
+        <input type="checkbox" id="toggle_darktheme" role="switch" onchange="toggleDarkTheme()">
+        Dark Theme
+      </label>
+    </div>
+
+    <dialog id="info_dialog">
+      <article>
+        <a href="#close" aria-label="Close" class="close" data-target="info_dialog" onClick="toggleModal(event)">
+        </a>
+        <h2>Discrete Hopf Fibrations</h2>
+        <p>
+          This gallery shows polar orbit polytopes for
+          the cyclic-type tubical groups with
+          all choices of special starting points.
+          It is based on the article
+          <i>Towards a Geometric Understanding of the
+            4-Dimensional Point Groups</i>
+          by Laith Rastanawi and Günter Rote.
+        </p>
+        <p>
+          The main goal of the gallery is to show
+          cell decomposition of these polytopes into tubes,
+          and how these tubes are structured and interact with each other.
+        </p>
+
+        <h4>Used Libraries</h4>
+        <ul>
+          <li>
+            <a href="https://github.com/anomal/RainbowVis-JS">RainbowVis-JS</a>:
+            A JavaScript library for colour data visualization.
+            [EPL-1.0]
+          </li>
+
+          <li>
+            <a href="https://github.com/mrdoob/three.js/">three.js</a>:
+            A JavaScript 3D library.
+            [MIT]
+          </li>
+
+          <li>
+            <a href="https://github.com/picocss/pico">Pico.css</a>:
+            Minimal CSS Framework for semantic HTML.
+            [MIT]
+          </li>
+        </ul>
+      </article>
+    </dialog>
+  </div>
+
+  <script>
+    // set color theme
+    var current_scheme;
+    if (localStorage.getItem("current_scheme") !== null) {
+      current_scheme = localStorage.getItem("current_scheme");
+    } else {
+      if (document.querySelector('html').hasAttribute('data-theme')) {
+        current_scheme = document.querySelector('html').attributes["data-theme"].nodeValue;
+      } else {
+        current_scheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+    }
+    document.querySelector('html').setAttribute('data-theme', current_scheme);
+    document.getElementById("toggle_darktheme").checked = (current_scheme == "dark") ? true : false;
+
+    // open/close sidebar functions
+    function openNav() {
+      document.getElementById("sidebar").style.width = "250px";
+      document.getElementsByClassName("openbtn")[0].style.display = "none";
+    }
+
+    function closeNav() {
+      document.getElementById("sidebar").style.width = "0";
+      document.getElementsByClassName("openbtn")[0].style.display = "block";
+    }
+
+    // switch functions
+    function toggleDarkTheme() {
+      let scheme;
+      scheme = (current_scheme == "light") ? scheme = "dark" : scheme = 'light';
+      document.querySelector('html').setAttribute('data-theme', scheme);
+
+      background_color = getComputedStyle(document.body).getPropertyValue('--background-color');
+      primary = getComputedStyle(document.body).getPropertyValue('--primary');
+      secondary = getComputedStyle(document.body).getPropertyValue('--secondary');
+      contrast = getComputedStyle(document.body).getPropertyValue('--contrast');
+
+      renderer.setClearColor(background_color, 1);
+      for (var i = 0; i < scene.children.length; i++) {
+        child = scene.children[i];
+        if (child.userData.hasOwnProperty("name")) {
+          if (child.userData["name"] = "box") {
+            child.material.color = new THREE.Color(contrast);
+            break;
+          }
+        }
+      }
+      current_scheme = scheme;
+      localStorage.setItem("current_scheme", current_scheme);
+      render();
+    }
+
+    function toggleTube(target) {
+      if (target.hasAttribute("stroke")) {
+        target.removeAttribute("stroke");
+        target.removeAttribute("stroke-width");
+        target.setAttribute("r", "10px");
+      } else {
+        target.setAttribute("stroke", "var(--color)");
+        target.setAttribute("stroke-width", "5px");
+        target.setAttribute("r", "15px");
+      }
+    }
+
+    // check if mobile
+    function isMobile() {
+      // credit to Timothy Huang for this regex test: 
+      // https://dev.to/timhuang/a-simple-way-to-detect-if-browser-is-on-a-mobile-device-with-javascript-44j3
+      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        return true
+      } else {
+        return false
+      }
+    }
+
+    // check if item (a 2d array) is in array
+    function indexOf2D(array, item) {
+      for (var i = 0; i < array.length; i++) {
+        if (array[i][0] == item[0] && array[i][1] == item[1]) {
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    // read GET parameters
+    function findGetParameter(parameterName) {
+      let result = null;
+      let tmp = [];
+      location.search
+        .substr(1)
+        .split("&")
+        .forEach(function(item) {
+          tmp = item.split("=");
+          if (tmp[0] === parameterName) {
+            result = decodeURIComponent(tmp[1])
+          };
+        });
+      return result;
+    }
+
+    // function to load json files 
+    function loadJSON(filePath) {
+      // src: https://stackoverflow.com/a/4117299
+      var json = loadTextFileAjaxSync(filePath, "application/json");
+      return JSON.parse(json);
+    }
+
+    function loadTextFileAjaxSync(filePath, mimeType) {
+      var xmlhttp = new XMLHttpRequest();
+      xmlhttp.open("GET", filePath, false);
+      if (mimeType != null) {
+        if (xmlhttp.overrideMimeType) {
+          xmlhttp.overrideMimeType(mimeType);
+        }
+      }
+      xmlhttp.send();
+      if (xmlhttp.status == 200 && xmlhttp.readyState == 4) {
+        return xmlhttp.responseText;
+      } else {
+        log(filePath + " does not exist!", "error");
+        return null;
+      }
+    }
+
+    // logging function
+    var message_panel_exists = false;
+
+    function log(msg, type) {
+      if (!message_panel_exists) {
+        log_panel.innerHTML += "<strong>Messages</strong>\n"
+        message_panel_exists = true;
+      }
+      var col = "";
+      if (type == "error") {
+        col = " style='color: red;'";
+      } else if (type == "info") {
+        col = " style='color: green;'";
+      }
+      log_panel.innerHTML += "<pre><span" + col + ">" + msg + "</span></pre>\n";
+    }
+  </script>
+
+  <script>
+    // variables
+    var filename;
+    var tubes;
+    var tube_children_index = {};
+    var rainbow;
+
+    // main
+    loadFiles();
+    loadTubes();
+    generateColors();
+
+    // generate colors for tubes
+    function generateColors() {
+      let rainbow_gen = new Rainbow();
+      rainbow_gen.setNumberRange(1, tubes.information.ntubes);
+      rainbow_gen.setSpectrum('red', 'yellow', 'green');
+      rainbow = [];
+      for (let i = 1; i <= tubes.information.ntubes; i++) {
+        let hexColour = rainbow_gen.colourAt(i);
+        rainbow.push('#' + hexColour);
+      }
+    }
+
+    // change the number of cells
+    function changeNCells() {
+      ncells_to_show = document.querySelector('input[name="ncells_to_show"]').value;
+      document.getElementById("ncells_to_show_output").innerHTML = ncells_to_show;
+      let count = 0
+      tubes.information.cells_order.forEach(function(pair) {
+        let tube_index = pair[0];
+        let cell_index = pair[1];
+        if (!(tube_index in tube_children_index)) {
+          count += 1;
+          return;
+        }
+        let child_index = tube_children_index[tube_index];
+        if (count >= ncells_to_show) {
+          scene.children[child_index].children[cell_index].visible = false;
+        } else {
+          scene.children[child_index].children[cell_index].visible = true;
+        }
+        count += 1;
+      });
+      if (0 in tube_children_index) {
+        if (show_window == false) {
+          scene.children[tube_children_index[0]].children.slice(-1)[0].visible = false;
+        } else {
+          scene.children[tube_children_index[0]].children.slice(-1)[0].visible = true;
+        }
+      }
+      render();
+    }
+
+    // change opacity of the cells
+    function changeOpacity() {
+      opacity = document.querySelector('input[name="opacity"]').value;
+      document.getElementById("opacity_output").innerHTML = opacity;
+      for (const [tube_index, child_index] of Object.entries(tube_children_index)) {
+        let child = scene.children[child_index];
+        for (let j = 0; j < child.children.length; j++) {
+          let cell = child.children[j];
+          if (cell.userData["type"] !== "cell") {
+            continue
+          }
+          cell.children[0].material.opacity = opacity;
+          cell.children[1].material.opacity = opacity;
+        }
+      }
+      render();
+    }
+
+    // load files from files.json
+    function loadFiles() {
+      let files = loadJSON("files.json");
+      for (const file of files) {
+        const option = document.createElement("option");
+        option.setAttribute("value", file);
+        option.text = file.substring(file.lastIndexOf("/") + 1, file.lastIndexOf("_"));
+        if (file.startsWith("--")) {
+          option.text = file;
+          option.disabled = true;
+        } else {
+          option.text = file.substring(file.lastIndexOf("/") + 1, file.lastIndexOf("_"));
+        }
+        file_selector.appendChild(option);
+      }
+    }
+
+    // open file from f GET parameter
+    function openFile(target) {
+      let getUrl = window.location;
+      let baseUrl = getUrl.protocol + "//" + getUrl.host + getUrl.pathname;
+      window.location = baseUrl + "?f=" + target.value;
+    }
+
+    // load tube data
+    function loadTubes() {
+      if (findGetParameter("f") == null) {
+        filename = "IxCn/5/120cells_12tubes"
+      } else {
+        filename = findGetParameter("f");
+      }
+      file_selector.value = filename;
+      tubes = loadJSON("data/" + filename + ".json");
+
+      //data_gr_latex.innerHTML = tubes["information"]["gr_latex"];
+      data_gr_latex.innerHTML = tubes["information"]["gr_latex"];
+      data_ns.innerHTML = "$" + tubes["information"]["ns"] + "$";
+      data_ntubes.innerHTML = "$" + tubes["information"]["ntubes"] + "$";
+      data_ncells_all.innerHTML = "$" + tubes["information"]["ncells_all"] + "$";
+      data_ncells_on_tube.innerHTML = "$" + tubes["information"]["ncells_on_tube"] + "$";
+    }
+  </script>
+
+  <script>
+    // css variables
+    var background_color = getComputedStyle(document.body).getPropertyValue('--background-color');
+    var primary = getComputedStyle(document.body).getPropertyValue('--primary');
+    var secondary = getComputedStyle(document.body).getPropertyValue('--secondary');
+    var contrast = getComputedStyle(document.body).getPropertyValue('--contrast');
+
+    // defaults
+    var show_window = false;
+    document.getElementById("toggle_window").checked = show_window;
+    document.getElementById("toggle_window").disabled = true;
+
+    var camera_type = 0;
+    document.getElementsByName("camera_type")[camera_type].checked = true;
+
+    var opacity = 1
+    document.querySelector('input[name="opacity"]').value = opacity
+    document.getElementById("opacity_output").innerHTML = opacity;
+
+    var ncells_to_show = tubes.information.ncells_all;
+    document.querySelector('input[name="ncells_to_show"]').max = ncells_to_show;
+    document.querySelector('input[name="ncells_to_show"]').value = ncells_to_show;
+    document.getElementById("ncells_to_show_output").innerHTML = ncells_to_show;
+
+    document.getElementById("toggle_box").checked = true;
+
+    // bounding box
+    b_min = [0, 0, 0];
+    b_max = [0, 0, 0];
+
+    function set_min_max(p) {
+      if (p[0] <= b_min[0]) b_min[0] = p[0];
+      if (p[1] <= b_min[1]) b_min[1] = p[1];
+      if (p[2] <= b_min[2]) b_min[2] = p[2];
+      if (p[0] >= b_max[0]) b_max[0] = p[0];
+      if (p[1] >= b_max[1]) b_max[1] = p[1];
+      if (p[2] >= b_max[2]) b_max[2] = p[2];
+    }
+    tubes["points"].map(set_min_max);
+    var b = [{
+        "x": b_min[0],
+        "y": b_min[1],
+        "z": b_min[2]
+      },
+      {
+        "x": b_max[0],
+        "y": b_max[1],
+        "z": b_max[2]
+      }
+    ];
+
+    if (b[0].x === b[1].x) {
+      b[0].x -= 1;
+      b[1].x += 1;
+    }
+    if (b[0].y === b[1].y) {
+      b[0].y -= 1;
+      b[1].y += 1;
+    }
+    if (b[0].z === b[1].z) {
+      b[0].z -= 1;
+      b[1].z += 1;
+    }
+
+    var xMid = (b[0].x + b[1].x) / 2;
+    var yMid = (b[0].y + b[1].y) / 2;
+    var zMid = (b[0].z + b[1].z) / 2;
+    var xRange = b[1].x - b[0].x;
+    var yRange = b[1].y - b[0].y;
+    var zRange = b[1].z - b[0].z;
+    var midToCorner = Math.sqrt(xRange * xRange + yRange * yRange + zRange * zRange) / 2;
+
+    // renderer
+    var renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      preserveDrawingBuffer: true
+    });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(background_color, 1);
+    document.body.appendChild(renderer.domElement);
+
+    // cameras and controls
+    var camera, control;
+    var cameras = [new THREE.PerspectiveCamera(45, 1, 0.01, 100), new THREE.OrthographicCamera()];
+    cameras.forEach(function(cam) {
+      let scalar = isMobile() ? 2 : 1.5;
+      cam.up.set(0, 0, 1);
+      cam.position.set(xMid, yMid, zMid);
+      var offset = new THREE.Vector3(-scalar * xRange, 0, scalar * zRange);
+      cam.position.add(offset);
+    });
+    var controls = [
+      new THREE.OrbitControls(cameras[0], renderer.domElement),
+      new THREE.OrbitControls(cameras[1], renderer.domElement)
+    ];
+
+    // scene
+    var scene = new THREE.Scene();
+
+    // light
+    let light = new THREE.DirectionalLight("#7f7f7f", 1);
+    light.position.set(-5, 3, 0);
+    light.target.position.set(xMid, yMid, zMid);
+    scene.add(light.target);
+    cameras.forEach(function(cam) {
+      cam.add(light);
+      scene.add(cam);
+    });
+
+    var ambient = {
+      "color": "#7f7f7f"
+    };
+    scene.add(new THREE.AmbientLight(ambient.color, 1));
+
+    // bounding box
+    const box_geometry = new THREE.BoxGeometry(b[0].x - b[1].x, b[0].y - b[1].y, b[0].z - b[1].z);
+    const box_edges_geometry = new THREE.EdgesGeometry(box_geometry);
+    const box_edges_material = new THREE.LineBasicMaterial({
+      color: contrast
+    })
+    const box = new THREE.LineSegments(box_edges_geometry, box_edges_material);
+    box.visible = document.getElementById("toggle_box").checked;
+    box.userData.name = "box"
+    scene.add(box);
+
+    // initialization function for tubes
+    function initTube(tube_index) {
+      if (tube_index in tube_children_index) {
+        return false;
+      }
+      tube_children_index[tube_index] = scene.children.length
+
+      // tube
+      const tube_group = new THREE.Group();
+      tube_group.userData.type = "tube";
+      tube_group.userData.index = tube_index;
+      const vertices = tubes.points;
+
+      for (var cell_index = 0; cell_index < tubes.tubes[tube_index].length; cell_index++) {
+        faces_indices = tubes.tubes[tube_index][cell_index];
+        let faces_vertices = [];
+        let edges_vertices = [];
+        for (let i = 0; i < faces_indices.length; i++) {
+          for (let t = 0; t < faces_indices[i].length - 2; t++) {
+            faces_vertices.push(vertices[faces_indices[i][0]]);
+            faces_vertices.push(vertices[faces_indices[i][t + 1]]);
+            faces_vertices.push(vertices[faces_indices[i][t + 2]]);
+
+            edges_vertices.push(vertices[faces_indices[i][t]]);
+            edges_vertices.push(vertices[faces_indices[i][t + 1]]);
+          }
+          edges_vertices.push(vertices[faces_indices[i][faces_indices[i].length - 2]]);
+          edges_vertices.push(vertices[faces_indices[i][faces_indices[i].length - 1]]);
+          edges_vertices.push(vertices[faces_indices[i][faces_indices[i].length - 1]]);
+          edges_vertices.push(vertices[faces_indices[i][0]]);
+        }
+
+        // edges
+        let edges_vertices_array = new Float32Array(edges_vertices.flat());
+        let edges_geometry = new THREE.BufferGeometry()
+        edges_geometry.setAttribute('position', new THREE.Float32BufferAttribute(edges_vertices_array, 3));
+        edges_geometry.computeVertexNormals()
+        let edges_material = new THREE.LineBasicMaterial({
+          color: "black",
+          linewidth: 1,
+        });
+        let edges_mesh = new THREE.LineSegments(edges_geometry, edges_material);
+        edges_mesh.userData.type = "edges";
+
+        // faces
+        let faces_vertices_array = new Float32Array(faces_vertices.flat());
+        let faces_geometry = new THREE.BufferGeometry();
+        faces_geometry.setAttribute('position', new THREE.Float32BufferAttribute(faces_vertices_array, 3));
+        faces_geometry.computeVertexNormals();
+        let face_material = new THREE.MeshBasicMaterial({
+          color: rainbow[tube_index],
+          depthFunc: THREE.LessDepth,
+          opacity: opacity,
+          polygonOffset: true,
+          polygonOffsetFactor: 1,
+          polygonOffsetUnits: 0.5,
+          side: THREE.DoubleSide,
+          transparent: true
+        })
+        let face_material_phong = new THREE.MeshPhongMaterial({
+          side: THREE.DoubleSide,
+          color: rainbow[tube_index],
+          transparent: true,
+          opacity: opacity,
+          flatShading: false,
+          shininess: 20,
+          polygonOffset: true,
+          polygonOffsetFactor: 1,
+          polygonOffsetUnits: 0.5,
+        })
+        let faces_mesh = new THREE.Mesh(faces_geometry, face_material_phong);
+        faces_mesh.userData.type = "faces";
+
+        // cell
+        const cell_group = new THREE.Group();
+        cell_group.add(faces_mesh);
+        cell_group.add(edges_mesh);
+        cell_group.userData.type = "cell";
+        tube_group.add(cell_group)
+
+        if (indexOf2D(tubes.information.cells_order, [tube_index, cell_index]) >= ncells_to_show) {
+          cell_group.visible = false;
+        }
+        tube_group.add(cell_group)
+      }
+      scene.add(tube_group);
+    }
+
+    // rendering functions
+    function render() {
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      updateCamera();
+    }
+
+    // camera functions
+    function updateCamera() {
+      var aspect = window.innerWidth / window.innerHeight;
+      if (camera.type == "OrthographicCamera") {
+        if (aspect > 1) { // Wide window
+          camera.top = midToCorner;
+          camera.right = midToCorner * aspect;
+        } else { // Tall or square window
+          camera.top = midToCorner / aspect;
+          camera.right = midToCorner;
+        }
+        camera.bottom = -camera.top;
+        camera.left = -camera.right;
+      } else if (camera.type == "PerspectiveCamera") {
+        camera.aspect = aspect;
+      }
+      camera.updateProjectionMatrix();
+      render()
+    }
+
+    function changeCamera() {
+      camera_type = document.querySelector('input[name="camera_type"]:checked').value;
+      camera = cameras[camera_type];
+
+      control = controls[camera_type];
+      control.enabled = true;
+      control.addEventListener('change', render);
+      controls[camera_type ^ 1].enabled = false;
+      updateCamera();
+    }
+
+    changeCamera();
+    onWindowResize();
+    window.addEventListener('resize', onWindowResize);
+    render()
+
+    // toggle the outer cell
+    function toggleWindow() {
+      show_window = document.getElementById("toggle_window").checked;
+      let child = scene.children[tube_children_index[0]];
+      if (show_window == true) {
+        child.children.at(-1).visible = true;
+      } else {
+        child.children.at(-1).visible = false;
+      }
+      render();
+    }
+
+    // remove all tubes
+    function clearTubes() {
+      let circles = document.querySelectorAll('[id^=tube]');
+      circles.forEach(function(circle) {
+        if (circle.hasAttribute("stroke")) {
+          circle.onclick()
+        }
+      })
+    }
+  
+    // toggle bounding box
+    function toggleBox() {
+      for (var i = 0; i < scene.children.length; i++) {
+        child = scene.children[i];
+        if (child.userData.hasOwnProperty("name")) {
+          if (child.userData["name"] == "box") {
+            if (child.visible == true) {
+              child.visible = false;
+              //document.getElementById("toggle_box").checked = false;
+            } else {
+              child.visible = true;
+              //document.getElementById("toggle_box").checked = true;
+            }
+            break;
+          }
+        }
+      }
+      render();
+    }
+  </script>
+
+  <script>
+    // svg
+    initSVG();
+
+    document.getElementById("tube0").stroke = "var(--color)";
+    document.getElementById("tube0").onclick();
+
+    function initSVG() {
+      let grh = filename.substring(0, filename.indexOf("x"));
+
+      let type2 = "";
+      if (filename.indexOf("3p") != -1) {
+        type2 = "-2"
+      }
+
+      let svg_data = loadTextFileAjaxSync("svg/" + grh + "-" + tubes.information.ntubes + type2 + ".svg")
+      document.getElementById("svg_ph").innerHTML = svg_data;
+
+      for (let i = 0; i < tubes["information"]["ntubes"]; i++) {
+        let vertex = document.getElementById("tube" + i);
+        vertex.onclick = function toggle() {
+          let tube_index = i;
+          if (this.hasAttribute("stroke")) {
+            this.removeAttribute("stroke");
+            this.removeAttribute("stroke-width");
+            this.setAttribute("r", "10px");
+            initTube(tube_index);
+            if (tube_index == 0) {
+              document.getElementById("toggle_window").disabled = true;
+              toggleWindow();
+            }
+            let child = scene.children[tube_children_index[tube_index]];
+            child.visible = false;
+          } else {
+            this.setAttribute("stroke", rainbow[tube_index]);
+            this.setAttribute("stroke-width", "5px");
+            this.setAttribute("r", "15px");
+
+            initTube(tube_index);
+            if (tube_index == 0) {
+              document.getElementById("toggle_window").disabled = false;
+              toggleWindow();
+            }
+            let child = scene.children[tube_children_index[tube_index]];
+            child.visible = true;
+          }
+          updateCamera();
+        }
+      }
+    }
+  </script>
+
+  <script>
+    // src: https://github.com/picocss/pico/blob/master/docs/js/modal.js
+
+    // Config
+    const isOpenClass = 'modal-is-open';
+    const openingClass = 'modal-is-opening';
+    const closingClass = 'modal-is-closing';
+    const animationDuration = 400; // ms
+    let visibleModal = null;
+
+    // Toggle modal
+    const toggleModal = event => {
+      event.preventDefault();
+      const modal = document.getElementById(event.target.getAttribute('data-target'));
+      (typeof(modal) != 'undefined' && modal != null) &&
+      isModalOpen(modal) ? closeModal(modal) : openModal(modal)
+    }
+
+    // Is modal open
+    const isModalOpen = modal => {
+      return modal.hasAttribute('open') && modal.getAttribute('open') != 'false' ? true : false;
+    }
+
+    // Open modal
+    const openModal = modal => {
+      if (isScrollbarVisible()) {
+        document.documentElement.style.setProperty('--scrollbar-width', `${getScrollbarWidth()}px`);
+      }
+      document.documentElement.classList.add(isOpenClass, openingClass);
+      setTimeout(() => {
+        visibleModal = modal;
+        document.documentElement.classList.remove(openingClass);
+      }, animationDuration);
+      modal.setAttribute('open', true);
+    }
+
+    // Close modal
+    const closeModal = modal => {
+      visibleModal = null;
+      document.documentElement.classList.add(closingClass);
+      setTimeout(() => {
+        document.documentElement.classList.remove(closingClass, isOpenClass);
+        document.documentElement.style.removeProperty('--scrollbar-width');
+        modal.removeAttribute('open');
+      }, animationDuration);
+    }
+
+    // Close with a click outside
+    document.addEventListener('click', event => {
+      if (visibleModal != null) {
+        const modalContent = visibleModal.querySelector('article');
+        const isClickInside = modalContent.contains(event.target);
+        !isClickInside && closeModal(visibleModal);
+      }
+    });
+
+    // Close with Esc key
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && visibleModal != null) {
+        closeModal(visibleModal);
+      }
+    });
+
+    // Get scrollbar width
+    const getScrollbarWidth = () => {
+
+      // Creating invisible container
+      const outer = document.createElement('div');
+      outer.style.visibility = 'hidden';
+      outer.style.overflow = 'scroll'; // forcing scrollbar to appear
+      outer.style.msOverflowStyle = 'scrollbar'; // needed for WinJS apps
+      document.body.appendChild(outer);
+
+      // Creating inner element and placing it in the container
+      const inner = document.createElement('div');
+      outer.appendChild(inner);
+
+      // Calculating difference between container's full width and the child width
+      const scrollbarWidth = (outer.offsetWidth - inner.offsetWidth);
+
+      // Removing temporary elements from the DOM
+      outer.parentNode.removeChild(outer);
+
+      return scrollbarWidth;
+    }
+
+    // Is scrollbar visible
+    const isScrollbarVisible = () => {
+      return document.body.scrollHeight > screen.height;
+    }
+  </script>
+</body>
+
+</html>

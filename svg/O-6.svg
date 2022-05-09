@@ -1,0 +1,19 @@
+<svg version="1.1" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<g class="edges" stroke-width="5" fill="none" stroke="black">
+  <path d="M60 60 L60 440 L440 440 L440 60 L60 60 L60 440"/>
+  <path d="M145 145 L145 355 L355 355 L355 145 L145 145"/>
+  <path d="M60 60 L145 145"/>
+  <path d="M60 440 L145 355"/>
+  <path d="M440 60 L355 145"/>
+  <path d="M440 440 L355 355"/>
+</g>
+<g class="vertices" fill="red">
+  <circle r="10" cx="102" cy="250" id="tube2"/>
+  <circle r="10" cx="398" cy="250" id="tube3"/>
+  <circle r="10" cx="250" cy="250" id="tube0"/>
+  <circle r="10" cx="250" cy="398" id="tube5"/>
+  <circle r="10" cx="250" cy="102" id="tube1"/>
+  <circle r="10" cx="250" cy="470" id="tube4"/>
+</g>
+</svg>
+
