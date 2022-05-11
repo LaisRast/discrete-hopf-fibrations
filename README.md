@@ -1,10 +1,9 @@
 # Discrete Hopf Fibrations
 
 This gallery shows polar orbit polytopes for the cyclic-type tubical groups
-with all choices of special starting points. It is based on the forthcoming
-article
-Towards a Geometric Understanding of the 4-Dimensional Point
-Groups by Laith Rastanawi and Günter Rote.
+with all choices of special starting points. It is based on the article
+[Towards a Geometric Understanding of the 4-Dimensional Point
+Groups](http://arxiv.org/abs/2205.04965) by Laith Rastanawi and Günter Rote.
 
 The main goal of the gallery is to show cell decomposition of these polytopes
 into tubes (discrete Hopf fibrations), and how these tubes are structured and
