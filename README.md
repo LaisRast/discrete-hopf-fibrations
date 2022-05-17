@@ -9,6 +9,11 @@ The main goal of the gallery is to show cell decomposition of these polytopes
 into tubes (discrete Hopf fibrations), and how these tubes are structured and
 interact with each other.
 
+## Screenshots
+![screenshot01](./screenshots/screenshot01.png)
+![screenshot03](./screenshots/screenshot02.png)
+![screenshot03](./screenshots/screenshot03.png)
+
 ## Running
 
 You can view the gallery live
