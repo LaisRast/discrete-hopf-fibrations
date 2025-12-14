@@ -291,16 +291,24 @@
 
     function log(msg, type) {
       if (!message_panel_exists) {
-        log_panel.innerHTML += "<strong>Messages</strong>\n"
+        let header = document.createElement('strong');
+        header.textContent = 'Messages';
+        log_panel.appendChild(header);
+        log_panel.appendChild(document.createTextNode('\n'));
         message_panel_exists = true;
       }
-      var col = "";
+
+      let span = document.createElement('span');
+      span.textContent = msg;
       if (type == "error") {
-        col = " style='color: red;'";
+        span.style.color = 'red';
       } else if (type == "info") {
-        col = " style='color: green;'";
+        span.style.color = 'green';
       }
-      log_panel.innerHTML += "<pre><span" + col + ">" + msg + "</span></pre>\n";
+      let pre = document.createElement('pre');
+      pre.appendChild(span);
+      log_panel.appendChild(pre);
+      log_panel.appendChild(document.createTextNode('\n'));
     }
   </script>
 
@@ -402,20 +410,31 @@
 
     // load tube data
     function loadTubes() {
+      let requestedFile;
       if (findGetParameter("f") == null) {
-        filename = "IxCn/5/120cells_12tubes"
+        requestedFile = "IxCn/5/120cells_12tubes"
       } else {
-        filename = findGetParameter("f");
+        requestedFile = findGetParameter("f");
+
+        // Validate filename against whitelist
+        let allFiles = loadJSON("files.json");
+        let validFiles = allFiles.filter(file => !file.startsWith("--"));
+        if (!validFiles.includes(requestedFile)) {
+          log("Invalid or unauthorized file requested: " + requestedFile, "error");
+          requestedFile = "IxCn/5/120cells_12tubes";
+        }
       }
+
+      filename = requestedFile;
       file_selector.value = filename;
       tubes = loadJSON("data/" + filename + ".json");
 
-      //data_gr_latex.innerHTML = tubes["information"]["gr_latex"];
-      data_gr_latex.innerHTML = tubes["information"]["gr_latex"];
-      data_ns.innerHTML = "$" + tubes["information"]["ns"] + "$";
-      data_ntubes.innerHTML = "$" + tubes["information"]["ntubes"] + "$";
-      data_ncells_all.innerHTML = "$" + tubes["information"]["ncells_all"] + "$";
-      data_ncells_on_tube.innerHTML = "$" + tubes["information"]["ncells_on_tube"] + "$";
+      // Security: Use textContent instead of innerHTML to prevent XSS from malicious JSON
+      data_gr_latex.textContent = tubes["information"]["gr_latex"];
+      data_ns.textContent = "$" + tubes["information"]["ns"] + "$";
+      data_ntubes.textContent = "$" + tubes["information"]["ntubes"] + "$";
+      data_ncells_all.textContent = "$" + tubes["information"]["ncells_all"] + "$";
+      data_ncells_on_tube.textContent = "$" + tubes["information"]["ncells_on_tube"] + "$";
     }
   </script>
 
@@ -738,7 +757,13 @@
       }
 
       let svg_data = loadTextFileAjaxSync("svg/" + grh + "-" + tubes.information.ntubes + type2 + ".svg")
-      document.getElementById("svg_ph").innerHTML = svg_data;
+
+      let svgContainer = document.getElementById("svg_ph");
+      svgContainer.innerHTML = "";
+      let parser = new DOMParser();
+      let svgDoc = parser.parseFromString(svg_data, "image/svg+xml");
+      let svgElement = svgDoc.documentElement;
+      svgContainer.appendChild(svgElement);
 
       for (let i = 0; i < tubes["information"]["ntubes"]; i++) {
         let vertex = document.getElementById("tube" + i);

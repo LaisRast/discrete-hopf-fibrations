@@ -205,7 +205,7 @@
         const detailsElement = document.createElement('details');
         detailsElement.open = true;
         const summaryElement = document.createElement('summary');
-        summaryElement.innerHTML = `${center_data.information.gr_latex}, ${center_data.information.center_type} rotation center`;
+        summaryElement.textContent = `${center_data.information.gr_latex}, ${center_data.information.center_type} rotation center`;
         detailsElement.appendChild(summaryElement);
 
         // build the cells
